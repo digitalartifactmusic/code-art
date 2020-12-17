@@ -104,9 +104,9 @@ void iterate(unsigned iterations)
 			Complex temp = j;
 			while (k < iterations)
 			{
-				if (((j._realPart * j._realPart) + (j._complexPart * j._complexPart)) >= 4.0)
+				if (((j._realPart * j._realPart) + (j._complexPart * j._complexPart)) >= 4)
 				{
-					SetPixel(_deviceContext, l, i, RGB(255, 0, 0));
+					SetPixel(_deviceContext, l, i, RGB(255 - (k * 5), 0, 0 + (k * 5)));
 					break;
 				}
 				j = (j * j) + temp;
@@ -144,9 +144,9 @@ int main()
 
 	iterate(200);
 
-	zoom(10.0, 0.2, 0.0);
+	zoom(40.0, 0.35, 0.15);
 
-	iterate(2000);
+	iterate(10000);
 
 	ReleaseDC(_consoleHandle, _deviceContext);
 
