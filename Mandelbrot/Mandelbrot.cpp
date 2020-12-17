@@ -8,11 +8,10 @@ using namespace std;
 const unsigned SCREENSIDE = 1000;
 
 long double PLANE = 4.0;
-long double PLANEDIV = PLANE / 2;
+long double PLANEDIV = PLANE / 2.0;
 long double ITERATE = PLANE / (long double)SCREENSIDE;
 
 HWND _consoleHandle = GetConsoleWindow();
-
 HDC _deviceContext = GetDC(_consoleHandle);
 
 class Complex
@@ -77,18 +76,10 @@ bool operator == (const Complex& c1, const Complex& c2)
 }
 
 static vector<vector<Complex>> SCREENSPACE;
+static Complex COPY;
 
 void initialize()
 {
-	if (SCREENSPACE.size())
-	{
-		for (vector<Complex> i : SCREENSPACE)
-			i.clear();
-
-		for (unsigned i = 0; i < SCREENSIDE; i++)
-			SCREENSPACE.pop_back();
-	}
-
 	PLANE = 4.0;
 	PLANEDIV = PLANE / 2;
 
@@ -117,16 +108,16 @@ void iterate(unsigned iterations)
 		{
 			l++;
 			unsigned k = 0;
-			Complex temp = j;
+			COPY = j;
 			while (k < iterations)
 			{
+				j = (j * j) + COPY;
+				k++;
 				if (((j._realPart * j._realPart) + (j._complexPart * j._complexPart)) >= 4)
 				{
 					SetPixel(_deviceContext, l, i, RGB(255 - (k * 5), 0, 0 + (k * 5)));
 					break;
 				}
-				j = (j * j) + temp;
-				k++;
 			}
 		}
 	}
@@ -134,7 +125,7 @@ void iterate(unsigned iterations)
 
 void zoom(long double magnification, long double plusX, long double plusY)
 {
-	PLANEDIV = PLANEDIV / magnification;
+	PLANEDIV = 4.0 / magnification;
 	PLANE = PLANEDIV * 2;
 
 	ITERATE = PLANE / (long double)SCREENSIDE;
@@ -158,15 +149,15 @@ int main()
 {
 	initialize();
 
-	iterate(200);
+	zoom(6, -1.2, 0.0);
+
+	iterate(2000);
 
 	zoom(40.0, 0.35, 0.15);
 
 	iterate(2000);
 
-	initialize();
-
-	zoom(20.0, -1.2, 0.23);
+	zoom(25.0, -1.2, 0.23);
 
 	iterate(2000);
 
