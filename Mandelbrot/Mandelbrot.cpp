@@ -9,7 +9,7 @@ using namespace std;
 
 const unsigned SCREENSIDE = 500;
 
-double PLANE = 2.0;
+double PLANE = 4.0;
 double PLANEDIV = PLANE / 2;
 double HEIGHT_ITERATE = PLANE / (double)SCREENSIDE, WIDTH_ITERATE = PLANE / (double)SCREENSIDE;
 
@@ -22,28 +22,23 @@ class Complex
 
 public:
 
-    double _realPart;
-    double _complexPart;
+	double _realPart;
+	double _complexPart;
 
 public:
 
-    Complex();
-    Complex(double realPart);
-    Complex(double realPart, double complexPart);
+	Complex();
+	Complex(double realPart);
+	Complex(double realPart, double complexPart);
 
-	double radius()
-	{
-		return sqrt(pow(_realPart, 2.0) + pow(_complexPart, 2.0));
-	}
+	friend ostream& operator << (ostream& out, const Complex& c);       // Operator overloading.
+	friend istream& operator >> (istream& in, Complex& c);
 
-    friend ostream& operator << (ostream& out, const Complex& c);       // Operator overloading.
-    friend istream& operator >> (istream& in, Complex& c);
+	friend Complex operator + (const Complex& c1, const Complex& c2);
+	friend Complex operator - (const Complex& c1, const Complex& c2);
+	friend Complex operator * (const Complex& c1, const Complex& c2);
 
-    friend Complex operator + (const Complex& c1, const Complex& c2);
-    friend Complex operator - (const Complex& c1, const Complex& c2);
-    friend Complex operator * (const Complex& c1, const Complex& c2);
-
-    friend bool operator == (const Complex& c1, const Complex& c2);
+	friend bool operator == (const Complex& c1, const Complex& c2);
 
 };
 
@@ -109,14 +104,15 @@ void iterate(unsigned iterations)
 			l++;
 			unsigned k = 0;
 			Complex temp = j;
-			while ((((j._realPart * j._realPart) + (j._complexPart * j._complexPart)) <= 4.0) && (k < iterations))
+			while (k < iterations)
 			{
+				if (((j._realPart * j._realPart) + (j._complexPart * j._complexPart)) >= 4.0)
+				{
+					SetPixel(_deviceContext, l, i, RGB(255, 0, 0));
+					break;
+				}
 				j = (j * j) + temp;
 				k++;
-			}
-			if (j.radius() > 2)
-			{
-				SetPixel(_deviceContext, l, i, RGB(255, 0, 0));
 			}
 		}
 	}
@@ -151,7 +147,7 @@ int main()
 
 	iterate(200);
 
-	zoom(100.0, 0.0, 0.64);
+	zoom(5.0, 0.0, 0.0);
 
 	iterate(10000);
 
