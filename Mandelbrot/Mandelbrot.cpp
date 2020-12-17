@@ -3,15 +3,13 @@
 #include <time.h>
 #include <vector>
 
-#include <cmath>
-
 using namespace std;
 
-const unsigned SCREENSIDE = 500;
+const unsigned SCREENSIDE = 1000;
 
 double PLANE = 4.0;
 double PLANEDIV = PLANE / 2;
-double HEIGHT_ITERATE = PLANE / (double)SCREENSIDE, WIDTH_ITERATE = PLANE / (double)SCREENSIDE;
+double ITERATE = PLANE / (double)SCREENSIDE;
 
 HWND _consoleHandle = GetConsoleWindow();
 
@@ -83,10 +81,10 @@ static vector<vector<Complex>> SCREENSPACE;
 void initialize()
 {
 	unsigned i = 0;
-	for (double y = -PLANEDIV; y <= PLANEDIV; y += HEIGHT_ITERATE)
+	for (double y = -PLANEDIV; y <= PLANEDIV; y += ITERATE)
 	{
 		SCREENSPACE.push_back(vector<Complex>{});
-		for (double x = -PLANEDIV; x <= PLANEDIV; x += WIDTH_ITERATE)
+		for (double x = -PLANEDIV; x <= PLANEDIV; x += ITERATE)
 		{
 			SCREENSPACE[i].push_back(Complex{ x ,  y });
 		}
@@ -118,24 +116,23 @@ void iterate(unsigned iterations)
 	}
 }
 
-void zoom(double magnification, double plusX = 0.0, double plusY = 0.0)
+void zoom(double magnification, double plusX, double plusY)
 {
 	PLANEDIV = PLANEDIV / magnification;
 	PLANE = PLANEDIV * 2;
 
-	HEIGHT_ITERATE = PLANE / (double)SCREENSIDE;
-	WIDTH_ITERATE = PLANE / (double)SCREENSIDE;
+	ITERATE = PLANE / (double)SCREENSIDE;
 
-	double y = PLANEDIV * -1.0;
+	double y = -PLANEDIV;
 	for (vector<Complex>& i : SCREENSPACE)
 	{
-		double x = PLANEDIV * -1.0;
+		double x = -PLANEDIV;
 		for (Complex& j : i)
 		{
 			j = Complex{ x + plusX , y + plusY };
-			x += WIDTH_ITERATE;
+			x += ITERATE;
 		}
-		y += HEIGHT_ITERATE;
+		y += ITERATE;
 	}
 
 	system("CLS");
@@ -147,9 +144,11 @@ int main()
 
 	iterate(200);
 
-	zoom(5.0, 0.0, 0.0);
+	zoom(10.0, 0.2, 0.0);
 
-	iterate(10000);
+	iterate(2000);
 
 	ReleaseDC(_consoleHandle, _deviceContext);
+
+	return 0;
 }
