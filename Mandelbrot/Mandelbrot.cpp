@@ -7,9 +7,9 @@ using namespace std;
 
 const unsigned SCREENSIDE = 1000;
 
-double PLANE = 4.0;
-double PLANEDIV = PLANE / 2;
-double ITERATE = PLANE / (double)SCREENSIDE;
+long double PLANE = 4.0;
+long double PLANEDIV = PLANE / 2;
+long double ITERATE = PLANE / (long double)SCREENSIDE;
 
 HWND _consoleHandle = GetConsoleWindow();
 
@@ -20,14 +20,14 @@ class Complex
 
 public:
 
-	double _realPart;
-	double _complexPart;
+	long double _realPart;
+	long double _complexPart;
 
 public:
 
 	Complex();
-	Complex(double realPart);
-	Complex(double realPart, double complexPart);
+	Complex(long double realPart);
+	Complex(long double realPart, long double complexPart);
 
 	friend ostream& operator << (ostream& out, const Complex& c);       // Operator overloading.
 	friend istream& operator >> (istream& in, Complex& c);
@@ -44,9 +44,9 @@ const Complex i(0, 1);                                                  // Defin
 
 Complex::Complex() : _realPart{ 0 }, _complexPart{ 0 } {}                    // Default constructor.
 
-Complex::Complex(double realPart) : _realPart{ realPart }, _complexPart{ 0 } {}  // Parameterized Constructors
+Complex::Complex(long double realPart) : _realPart{ realPart }, _complexPart{ 0 } {}  // Parameterized Constructors
 
-Complex::Complex(double realPart, double complexPart) : _realPart{ realPart }, _complexPart{ complexPart } {}
+Complex::Complex(long double realPart, long double complexPart) : _realPart{ realPart }, _complexPart{ complexPart } {}
 
 ostream& operator << (ostream& out, const Complex& c)
 {
@@ -80,15 +80,31 @@ static vector<vector<Complex>> SCREENSPACE;
 
 void initialize()
 {
-	unsigned i = 0;
-	for (double y = -PLANEDIV; y <= PLANEDIV; y += ITERATE)
+	if (SCREENSPACE.size())
+	{
+		for (vector<Complex> i : SCREENSPACE)
+			i.clear();
+
+		for (unsigned i = 0; i < SCREENSIDE; i++)
+			SCREENSPACE.pop_back();
+	}
+
+	PLANE = 4.0;
+	PLANEDIV = PLANE / 2;
+
+	ITERATE = PLANE / (long double)SCREENSIDE;
+
+	long double y = -PLANEDIV;
+	for (unsigned i = 0; i < SCREENSIDE; i++)
 	{
 		SCREENSPACE.push_back(vector<Complex>{});
-		for (double x = -PLANEDIV; x <= PLANEDIV; x += ITERATE)
+		long double x = -PLANEDIV;
+		for (unsigned j = 0; j < SCREENSIDE; j++)
 		{
 			SCREENSPACE[i].push_back(Complex{ x ,  y });
+			x += ITERATE;
 		}
-		i++;
+		y += ITERATE;
 	}
 }
 
@@ -116,17 +132,17 @@ void iterate(unsigned iterations)
 	}
 }
 
-void zoom(double magnification, double plusX, double plusY)
+void zoom(long double magnification, long double plusX, long double plusY)
 {
 	PLANEDIV = PLANEDIV / magnification;
 	PLANE = PLANEDIV * 2;
 
-	ITERATE = PLANE / (double)SCREENSIDE;
+	ITERATE = PLANE / (long double)SCREENSIDE;
 
-	double y = -PLANEDIV;
+	long double y = -PLANEDIV;
 	for (vector<Complex>& i : SCREENSPACE)
 	{
-		double x = -PLANEDIV;
+		long double x = -PLANEDIV;
 		for (Complex& j : i)
 		{
 			j = Complex{ x + plusX , y + plusY };
@@ -146,7 +162,13 @@ int main()
 
 	zoom(40.0, 0.35, 0.15);
 
-	iterate(10000);
+	iterate(2000);
+
+	initialize();
+
+	zoom(20.0, -1.2, 0.23);
+
+	iterate(2000);
 
 	ReleaseDC(_consoleHandle, _deviceContext);
 
