@@ -1,6 +1,5 @@
 #include <iostream>
 #include <Windows.h>
-#include <time.h>
 #include <vector>
 
 using namespace std;
@@ -115,7 +114,23 @@ void iterate(unsigned iterations)
 				k++;
 				if (((j._realPart * j._realPart) + (j._complexPart * j._complexPart)) >= 4)
 				{
-					SetPixel(_deviceContext, l, i, RGB(255 - (k * 5), 0, 0 + (k * 5)));
+
+					unsigned r = 0, g = 0, b = 0;
+					for (long long unsigned i = 0; i < k; i++)
+					{
+						r += 9;
+						if (r > 255)
+						{
+							r = 0;
+							b += 11;
+							if (b > 255)
+							{
+								b = 0;
+							}
+						}
+					}
+
+					SetPixel(_deviceContext, l, i, RGB(r, g, b));
 					break;
 				}
 			}
@@ -160,6 +175,34 @@ int main()
 	zoom(25.0, -1.2, 0.23);
 
 	iterate(2000);
+
+	zoom(50.0, -1.2, 0.23);
+
+	iterate(2000);
+
+	zoom(250.0, -1.18, 0.3);
+
+	iterate(2000);
+
+	zoom(1600.0, -1.185, 0.3);
+
+	iterate(5000);
+
+	zoom(10000.0, -1.185, 0.305);
+
+	iterate(5000);
+
+	zoom(25000.0, -1.1855, 0.3054);
+
+	iterate(5000);
+
+	zoom(200000.0, -1.1855, 0.3054);
+
+	iterate(5000);
+
+	zoom(2000000.0, -1.18552, 0.30539);
+
+	iterate(5000);
 
 	ReleaseDC(_consoleHandle, _deviceContext);
 
