@@ -92,7 +92,7 @@ static const double RATIO = WIDTH / HEIGHT;
 static const unsigned MAX_ITERATIONS = 10000;
 
 static const bool DOWNSAMPLE = true;
-static const bool JULIA = true;
+static const bool JULIA = false;
 
 static long double PLANE_HEIGHT = 4.0;
 static long double PLANEDIV_HEIGHT = PLANE_HEIGHT / 2.0;
@@ -554,10 +554,6 @@ int main()
 	zoom(200000.0, -1.25066, 0.02012);
 
 	iterate(2000);
-
-	zoom(20000000.0, -0.04524074130409, 0.9868162207157838);
-
-	iterate(5000);
 
 	ReleaseDC(_consoleHandle, _deviceContext);
 
