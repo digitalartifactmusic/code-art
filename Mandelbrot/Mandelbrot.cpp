@@ -86,7 +86,7 @@ bool operator == (const Complex& c1, const Complex& c2)
 }
 
 static const unsigned HEIGHT = 2160;
-static const unsigned WIDTH = HEIGHT * (21 / 9);
+static const unsigned WIDTH = 5040;
 static const double RATIO = WIDTH / HEIGHT;
 
 static const unsigned MAX_ITERATIONS = 10000;
