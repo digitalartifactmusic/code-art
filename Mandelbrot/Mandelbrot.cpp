@@ -6,7 +6,10 @@
 
 #include <thread>
 
-static const bool JULIA = true;
+static const unsigned MAX_THREADS = std::thread::hardware_concurrency();;
+std::vector<std::thread> THREADS(MAX_THREADS);
+
+static const bool JULIA = false;
 
 static const unsigned MAX_ITERATIONS = 1000;
 
@@ -14,14 +17,14 @@ static const unsigned HEIGHT = 1000;
 static const unsigned WIDTH = 1000;
 static const double RATIO = WIDTH / HEIGHT;
 
-static long double PLANE_HEIGHT = 4.0;
-static long double PLANEDIV_HEIGHT = PLANE_HEIGHT / 2.0;
+static const long double HEIGHTDIV = (long double)HEIGHT / 2.0;
+static const long double WIDTHDIV = (long double)WIDTH / 2.0;
 
-static long double PLANE_WIDTH = 4.0 * RATIO;
-static long double PLANEDIV_WIDTH = PLANE_WIDTH / 2.0;
+static long double PLANEDIV_HEIGHT = 2.0;
+static long double PLANEDIV_WIDTH = 2.0 * RATIO;
 
-static long double ITERATE_HEIGHT = PLANE_HEIGHT / (long double)HEIGHT;
-static long double ITERATE_WIDTH = PLANE_WIDTH / (long double)WIDTH;
+static long double ITERATE_HEIGHT = PLANEDIV_HEIGHT / HEIGHTDIV;
+static long double ITERATE_WIDTH = PLANEDIV_WIDTH / WIDTHDIV;
 
 static std::vector<sf::Color> COLORS = {};
 
@@ -75,20 +78,22 @@ static const std::complex<long double> JULIAPOINT = std::complex<long double>{ -
 
 void initialize()
 {
+	unsigned k = 0;
 	long double y = -PLANEDIV_HEIGHT;
 	for (unsigned i = 0; i < HEIGHT; i++)
 	{
 		long double x = -PLANEDIV_WIDTH;
 		for (unsigned j = 0; j < WIDTH; j++)
 		{
-			SCREENSPACE.push_back(Point{ std::complex<long double>{ x ,  y }, ((i * HEIGHT) + j), (float)j, (float)i });
+			SCREENSPACE.push_back(Point{ std::complex<long double>{ x ,  y }, k, (float)j, (float)i });
+			k++;
 			x += ITERATE_WIDTH;
 		}
 		y += ITERATE_HEIGHT;
 	}
 }
 
-void iterate(sf::VertexArray& vertexarray, const unsigned thread, const unsigned threads)
+void iterate(sf::VertexArray& vertexarray, const unsigned thread)
 {
 	switch (JULIA)
 	{
@@ -97,7 +102,7 @@ void iterate(sf::VertexArray& vertexarray, const unsigned thread, const unsigned
 			unsigned i = thread;
 			while (1)
 			{
-				Point& point = SCREENSPACE[i += threads];
+				Point& point = SCREENSPACE[i += MAX_THREADS];
 					std::complex<long double> k = point.comp, t = k;
 					for (unsigned l = 0; l < MAX_ITERATIONS; l++)
 					{
@@ -116,13 +121,14 @@ void iterate(sf::VertexArray& vertexarray, const unsigned thread, const unsigned
 					break;
 				}
 			}
+			break;
 		}
 		case true:
 		{
 			unsigned i = thread;
 			while (1)
 			{
-				Point& point = SCREENSPACE[i += threads];
+				Point& point = SCREENSPACE[i += MAX_THREADS];
 					std::complex<long double> k = point.comp;
 					for (unsigned l = 0; l < MAX_ITERATIONS; l++)
 					{
@@ -146,29 +152,49 @@ void iterate(sf::VertexArray& vertexarray, const unsigned thread, const unsigned
 	}
 }
 
-void zoom(long double magnification, long double plusX, long double plusY)
+void zoom(long double magnification, const long double& coordX, const long double& coordY)
 {
-
-	PLANE_HEIGHT = 4.0 / magnification;
-	PLANEDIV_HEIGHT = PLANE_HEIGHT / 2;
-
-	PLANE_WIDTH = (4.0 * RATIO) / magnification;
-	PLANEDIV_WIDTH = PLANE_WIDTH / 2;
-
-	ITERATE_HEIGHT = PLANE_HEIGHT / (long double)HEIGHT;
-	ITERATE_WIDTH = PLANE_WIDTH / (long double)WIDTH;
-
-	long double y = -PLANEDIV_HEIGHT;
-	for (unsigned i = 0; i < HEIGHT; i++)
+	std::thread t1([&]
 	{
-		long double x = -PLANEDIV_WIDTH;
-		for (unsigned j = 0; j < WIDTH; j++)
+		ITERATE_HEIGHT *= magnification;
+	});
+	std::thread t2([&]
+	{
+		ITERATE_WIDTH *= magnification;
+	});
+	std::thread t3([&]
+	{
+		PLANEDIV_HEIGHT *= magnification;
+	});
+	std::thread t4([&]
+	{
+		PLANEDIV_WIDTH *= magnification;
+	});
+
+	t1.join();
+	t2.join();
+	t3.join();
+	t4.join();
+
+	THREADS.clear();
+	for (unsigned i = 0; i < MAX_THREADS; i++)
+	{
+		THREADS.emplace_back(std::thread([i, &coordX, &coordY] 
 		{
-			SCREENSPACE[((i * HEIGHT) + j)] = Point{ std::complex<long double>{ x + plusX,  y + plusY }, ((i * HEIGHT) + j), (float)j, (float)i };
-			x += ITERATE_WIDTH;
-		}
-		y += ITERATE_HEIGHT;
+			unsigned j = i;
+			while (1)
+			{
+				Point& point = SCREENSPACE[j += MAX_THREADS];
+
+				point.comp = std::complex<long double>{ -PLANEDIV_WIDTH + ((unsigned)point.x * ITERATE_WIDTH) + coordX,  -PLANEDIV_HEIGHT + ((unsigned)point.y * ITERATE_HEIGHT) + coordY};
+
+				if (j >= SCREENSPACE.size())
+					break;
+			}
+		}));
 	}
+	for (auto& th : THREADS)
+		th.join();
 }
 
 int main()
@@ -181,11 +207,11 @@ int main()
 
 	sf::RenderWindow window(sf::VideoMode{ WIDTH , HEIGHT }, "Mandelbrot");
 
-	sf::VertexArray vertexArray(sf::Points, WIDTH * HEIGHT);
+	const unsigned vertexArrSize = WIDTH * HEIGHT;
 
-	long double plusX = 0.0, plusY = 0.0;
+	sf::VertexArray vertexArray(sf::Points, vertexArrSize);
 
-	int maxZoom = 200;
+	long double plusX = 0.267235642726, plusY = 0.003347589624;
 
 	while (window.isOpen())
 	{
@@ -196,24 +222,34 @@ int main()
 				window.close();
 		}
 
-		if (currentZoom < maxZoom)
+		THREADS.clear();
+		for (unsigned i = 0; i < MAX_THREADS; i++)
 		{
-			for (int i = 0; i < WIDTH * HEIGHT; i++)
-				vertexArray[i].color = sf::Color::Black;
+			THREADS.emplace_back(std::thread([i, &vertexArray, &vertexArrSize]
+			{
+				unsigned j = i;
+				while (1)
+				{
+					vertexArray[j += MAX_THREADS].color = sf::Color::Black;
 
-			zoom(currentZoom *= 1.1, plusX, plusY);
-
-			unsigned max = std::thread::hardware_concurrency();;
-
-			std::vector<std::thread> threads;
-			for (unsigned i = 1; i <= max; i++)
-				threads.emplace_back(std::thread(iterate, std::ref(vertexArray), i, max));
-			for (auto& th : threads)
-				th.join();
-
-			window.draw(vertexArray);
-			window.display();
+					if (j >= vertexArrSize)
+						break;
+				}
+			}));
 		}
+		for (auto& th : THREADS)
+			th.join();
+
+		zoom(0.9, plusX, plusY);
+
+		THREADS.clear();
+		for (unsigned i = 0; i < MAX_THREADS; i++)
+			THREADS.emplace_back(std::thread(iterate, std::ref(vertexArray), i));
+		for (auto& th : THREADS)
+			th.join();
+
+		window.draw(vertexArray);
+		window.display();
 	}
 
 	return 0;
