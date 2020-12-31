@@ -9,12 +9,12 @@
 static const unsigned MAX_THREADS = std::thread::hardware_concurrency();;
 std::vector<std::thread> THREADS(MAX_THREADS);
 
-static const bool JULIA = false;
+static const bool JULIA = true;
 
-static const unsigned MAX_ITERATIONS = 1000;
+static const unsigned MAX_ITERATIONS = 500;
 
 static const unsigned HEIGHT = 1000;
-static const unsigned WIDTH = 1000;
+static const unsigned WIDTH = 2000;
 static const double RATIO = WIDTH / HEIGHT;
 
 static const long double HEIGHTDIV = (long double)HEIGHT / 2.0;
@@ -41,19 +41,8 @@ void colorInit()
 		}
 		else
 		{
-			for (unsigned j = 0; j < i; j++)
-			{
-				r += 9;
-				if (r > 255)
-				{
-					r = 0;
-					b += 11;
-					if (b > 255)
-					{
-						b = 0;
-					}
-				}
-			}
+			r = i % 256;
+			b = r;
 		}
 
 		COLORS.push_back(sf::Color{ r, g, b });
@@ -69,12 +58,12 @@ public:
 
 	Point() = delete;
 
-	Point(std::complex<long double> imag, unsigned pos, float x, float y) : comp{ imag }, pos{ pos }, x{ x }, y{ y } {}
+	Point(std::complex<long double> comp, unsigned pos, float x, float y) : comp{ comp }, pos{ pos }, x{ x }, y{ y } {}
 
 };
 static std::vector<Point> SCREENSPACE;
 
-static const std::complex<long double> JULIAPOINT = std::complex<long double>{ -0.8 , -0.156 };
+static std::complex<long double> JULIAPOINT = std::complex<long double>{ -0.8 , -0.156 };
 
 void initialize()
 {
@@ -104,7 +93,8 @@ void iterate(sf::VertexArray& vertexarray, const unsigned thread)
 			{
 				Point& point = SCREENSPACE[i += MAX_THREADS];
 					std::complex<long double> k = point.comp, t = k;
-					for (unsigned l = 0; l < MAX_ITERATIONS; l++)
+					unsigned l = 0;
+					for (l = 0; l < MAX_ITERATIONS; l++)
 					{
 						k = (k * k) + t;
 						if (((k.real() * k.real()) + (k.imag() * k.imag())) >= 4)
@@ -114,6 +104,10 @@ void iterate(sf::VertexArray& vertexarray, const unsigned thread)
 							vertexarray[i].color = *COLORITR;
 							break;
 						}
+					}
+					if (l == MAX_ITERATIONS)
+					{
+						vertexarray[i].color = sf::Color::Black;
 					}
 
 				if (i >= SCREENSPACE.size())
@@ -130,7 +124,8 @@ void iterate(sf::VertexArray& vertexarray, const unsigned thread)
 			{
 				Point& point = SCREENSPACE[i += MAX_THREADS];
 					std::complex<long double> k = point.comp;
-					for (unsigned l = 0; l < MAX_ITERATIONS; l++)
+					unsigned l = 0;
+					for (l = 0; l < MAX_ITERATIONS; l++)
 					{
 						k = (k * k) + JULIAPOINT;
 						if (((k.real() * k.real()) + (k.imag() * k.imag())) >= 4)
@@ -140,6 +135,10 @@ void iterate(sf::VertexArray& vertexarray, const unsigned thread)
 							vertexarray[i].color = *COLORITR;
 							break;
 						}
+					}
+					if (l == MAX_ITERATIONS)
+					{
+						vertexarray[i].color = sf::Color::Black;
 					}
 
 				if (i >= SCREENSPACE.size())
@@ -154,32 +153,14 @@ void iterate(sf::VertexArray& vertexarray, const unsigned thread)
 
 void zoom(long double magnification, const long double& coordX, const long double& coordY)
 {
-	std::thread t1([&]
-	{
-		ITERATE_HEIGHT *= magnification;
-	});
-	std::thread t2([&]
-	{
-		ITERATE_WIDTH *= magnification;
-	});
-	std::thread t3([&]
-	{
-		PLANEDIV_HEIGHT *= magnification;
-	});
-	std::thread t4([&]
-	{
-		PLANEDIV_WIDTH *= magnification;
-	});
+	ITERATE_HEIGHT *= magnification;
+	ITERATE_WIDTH *= magnification;
+	PLANEDIV_HEIGHT *= magnification;
+	PLANEDIV_WIDTH *= magnification;
 
-	t1.join();
-	t2.join();
-	t3.join();
-	t4.join();
-
-	THREADS.clear();
 	for (unsigned i = 0; i < MAX_THREADS; i++)
 	{
-		THREADS.emplace_back(std::thread([i, &coordX, &coordY] 
+		THREADS[i] = std::thread([i, &coordX, &coordY] 
 		{
 			unsigned j = i;
 			while (1)
@@ -191,7 +172,7 @@ void zoom(long double magnification, const long double& coordX, const long doubl
 				if (j >= SCREENSPACE.size())
 					break;
 			}
-		}));
+		});
 	}
 	for (auto& th : THREADS)
 		th.join();
@@ -211,7 +192,7 @@ int main()
 
 	sf::VertexArray vertexArray(sf::Points, vertexArrSize);
 
-	long double plusX = 0.267235642726, plusY = 0.003347589624;
+	long double plusX = 0.0, plusY = 0.0;
 
 	while (window.isOpen())
 	{
@@ -222,34 +203,18 @@ int main()
 				window.close();
 		}
 
-		THREADS.clear();
+		zoom(0.99, plusX, plusY);
+
 		for (unsigned i = 0; i < MAX_THREADS; i++)
-		{
-			THREADS.emplace_back(std::thread([i, &vertexArray, &vertexArrSize]
-			{
-				unsigned j = i;
-				while (1)
-				{
-					vertexArray[j += MAX_THREADS].color = sf::Color::Black;
-
-					if (j >= vertexArrSize)
-						break;
-				}
-			}));
-		}
-		for (auto& th : THREADS)
-			th.join();
-
-		zoom(0.9, plusX, plusY);
-
-		THREADS.clear();
-		for (unsigned i = 0; i < MAX_THREADS; i++)
-			THREADS.emplace_back(std::thread(iterate, std::ref(vertexArray), i));
+			THREADS[i] = std::thread(iterate, std::ref(vertexArray), i);
 		for (auto& th : THREADS)
 			th.join();
 
 		window.draw(vertexArray);
 		window.display();
+
+		JULIAPOINT += std::complex<long double>{ 0.00000001, 0.00000001 };
+		JULIAPOINT *= std::complex<long double>{ cos(3.1415926 / 1000000) , sin(3.1415926 / 1000000) };
 	}
 
 	return 0;
