@@ -1,98 +1,18 @@
+#include <SFML/Graphics.hpp>
+
 #include <iostream>
 #include <vector>
-#include <Windows.h>
+#include <complex>
 
-using namespace std;
+#include <thread>
 
-class Color
-{
-private:
+static const bool JULIA = true;
 
-	std::vector<unsigned> _color;
+static const unsigned MAX_ITERATIONS = 1000;
 
-public:
-
-	Color() = delete;
-
-	Color(unsigned r, unsigned g, unsigned b) : _color{ r, g, b } {}
-
-	unsigned getR() const { return _color[0]; }
-	unsigned getG() const { return _color[1]; }
-	unsigned getB() const { return _color[2]; }
-
-	void setR(const unsigned r) { _color[0] = r; }
-	void setG(const unsigned g) { _color[1] = g; }
-	void setB(const unsigned b) { _color[2] = b; }
-
-};
-
-class Complex
-{
-
-public:
-
-	long double _realPart;
-	long double _complexPart;
-
-public:
-
-	Complex();
-	Complex(long double realPart);
-	Complex(long double realPart, long double complexPart);
-
-	friend ostream& operator << (ostream& out, const Complex& c);       // Operator overloading.
-	friend istream& operator >> (istream& in, Complex& c);
-
-	friend Complex operator + (const Complex& c1, const Complex& c2);
-	friend Complex operator - (const Complex& c1, const Complex& c2);
-	friend Complex operator * (const Complex& c1, const Complex& c2);
-
-	friend bool operator == (const Complex& c1, const Complex& c2);
-
-};
-
-Complex::Complex() : _realPart{ 0 }, _complexPart{ 0 } {}                    // Default constructor.
-
-Complex::Complex(long double realPart) : _realPart{ realPart }, _complexPart{ 0 } {}  // Parameterized Constructors
-
-Complex::Complex(long double realPart, long double complexPart) : _realPart{ realPart }, _complexPart{ complexPart } {}
-
-ostream& operator << (ostream& out, const Complex& c)
-{
-	out << c._realPart << " + " << c._complexPart << "i";
-	return out;
-}
-istream& operator >> (istream& in, Complex& c)
-{
-	in >> c._realPart >> c._complexPart;
-	return in;
-}
-Complex operator + (const Complex& c1, const Complex& c2)
-{
-	return Complex{ (c1._realPart + c2._realPart), (c1._complexPart + c2._complexPart) };
-}
-Complex operator - (const Complex& c1, const Complex& c2)
-{
-	return Complex{ (c1._realPart - c2._realPart), (c1._complexPart - c2._complexPart) };
-}
-Complex operator * (const Complex& c1, const Complex& c2)
-{
-	return Complex{ ((c1._realPart * c2._realPart) - (c1._complexPart * c2._complexPart)), ((c1._realPart * c2._complexPart) +
-	(c1._complexPart * c2._realPart)) };
-}
-bool operator == (const Complex& c1, const Complex& c2)
-{
-	return ((c1._realPart == c2._realPart) && (c1._complexPart == c2._complexPart));
-}
-
-static const unsigned HEIGHT = 2160;
-static const unsigned WIDTH = 5040;
+static const unsigned HEIGHT = 1000;
+static const unsigned WIDTH = 1000;
 static const double RATIO = WIDTH / HEIGHT;
-
-static const unsigned MAX_ITERATIONS = 10000;
-
-static const bool DOWNSAMPLE = true;
-static const bool JULIA = false;
 
 static long double PLANE_HEIGHT = 4.0;
 static long double PLANEDIV_HEIGHT = PLANE_HEIGHT / 2.0;
@@ -103,32 +23,11 @@ static long double PLANEDIV_WIDTH = PLANE_WIDTH / 2.0;
 static long double ITERATE_HEIGHT = PLANE_HEIGHT / (long double)HEIGHT;
 static long double ITERATE_WIDTH = PLANE_WIDTH / (long double)WIDTH;
 
-static HWND _consoleHandle = GetConsoleWindow();
-static HDC _deviceContext = GetDC(_consoleHandle);
-
-static vector<vector<Complex>> SCREENSPACE;
-static Complex COPY;
-
-static const Complex JULIAPOINT = Complex{ -0.8 , -0.156 };
-
-static vector<Color> COLORS = {};
-
-static vector<Color>::iterator COLORITR = COLORS.begin();
-
-static long double l1, l2, l3, l4;
-static long double l;
-
-static Complex k;
-
-static unsigned i, j, x, y;
-
-static unsigned r, g, b;
-
-static unsigned t;
+static std::vector<sf::Color> COLORS = {};
 
 void colorInit()
 {
-	unsigned r = 0, g = 0, b = 0;
+	sf::Uint8 r = 0, g = 0, b = 0;
 	for (unsigned i = 0; i < MAX_ITERATIONS; i++)
 	{
 		r = 0, g = 0, b = 0;
@@ -139,312 +38,107 @@ void colorInit()
 		}
 		else
 		{
-			//for (unsigned j = 0; j < i; j++)
-			//{
-			//	r += 9;
-			//	if (r > 255)
-			//	{
-			//		r = 0;
-			//		b += 11;
-			//		if (b > 255)
-			//		{
-			//			b = 0;
-			//		}
-			//	}
-			//}
-
-			r = i % 256;
-			b = r;
+			for (unsigned j = 0; j < i; j++)
+			{
+				r += 9;
+				if (r > 255)
+				{
+					r = 0;
+					b += 11;
+					if (b > 255)
+					{
+						b = 0;
+					}
+				}
+			}
 		}
 
-		COLORS.push_back(Color{ r, g, b });
+		COLORS.push_back(sf::Color{ r, g, b });
 	}
 }
+
+class Point
+{
+public:
+	std::complex<long double> comp;
+	unsigned pos;
+	float x, y;
+
+	Point() = delete;
+
+	Point(std::complex<long double> imag, unsigned pos, float x, float y) : comp{ imag }, pos{ pos }, x{ x }, y{ y } {}
+
+};
+static std::vector<Point> SCREENSPACE;
+
+static const std::complex<long double> JULIAPOINT = std::complex<long double>{ -0.8 , -0.156 };
 
 void initialize()
 {
 	long double y = -PLANEDIV_HEIGHT;
 	for (unsigned i = 0; i < HEIGHT; i++)
 	{
-		SCREENSPACE.push_back(vector<Complex>{});
 		long double x = -PLANEDIV_WIDTH;
 		for (unsigned j = 0; j < WIDTH; j++)
 		{
-			SCREENSPACE[i].push_back(Complex{ x ,  y });
+			SCREENSPACE.push_back(Point{ std::complex<long double>{ x ,  y }, ((i * HEIGHT) + j), (float)j, (float)i });
 			x += ITERATE_WIDTH;
 		}
 		y += ITERATE_HEIGHT;
 	}
 }
 
-void iterate(unsigned iterations)
+void iterate(sf::VertexArray& vertexarray, const unsigned thread, const unsigned threads)
 {
-	if (iterations > MAX_ITERATIONS)
+	switch (JULIA)
 	{
-		cerr << "Too Many Iterations: " << iterations << " > " << MAX_ITERATIONS << endl;
-		exit(1);
-	}
-
-	switch (DOWNSAMPLE)
-	{
-	case false:
-		switch (JULIA)
-		{
 		case false:
-			for (y = 0; y < HEIGHT; y++)
+		{
+			unsigned i = thread;
+			while (1)
 			{
-				x = 0;
-				for (Complex j : SCREENSPACE[y])
-				{
-					x++;
-					l = 0;
+				Point& point = SCREENSPACE[i += threads];
+					std::complex<long double> k = point.comp, t = k;
+					for (unsigned l = 0; l < MAX_ITERATIONS; l++)
+					{
+						k = (k * k) + t;
+						if (((k.real() * k.real()) + (k.imag() * k.imag())) >= 4)
+						{
+							std::vector<sf::Color>::iterator COLORITR = COLORS.begin() + l;
+							vertexarray[i].position = sf::Vector2f{ point.x , point.y };
+							vertexarray[i].color = *COLORITR;
+							break;
+						}
+					}
 
-					k = j;
-					while (l++ < iterations)
-					{
-						j = (j * j) + k;
-						if (((j._realPart * j._realPart) + (j._complexPart * j._complexPart)) >= 4)
-						{
-							COLORITR = COLORS.begin() + l;
-							SetPixel(_deviceContext, x, y, RGB(COLORITR->getR(), COLORITR->getG(), COLORITR->getB()));
-							break;
-						}
-					}
-				}
-			}
-			break;
-		case true:
-			for (y = 0; y < HEIGHT; y++)
-			{
-				x = 0;
-				for (Complex j : SCREENSPACE[y])
+				if (i >= SCREENSPACE.size())
 				{
-					x++;
-					l = 0;
-					while (l++ < iterations)
-					{
-						j = (j * j) + JULIAPOINT;
-						if (((j._realPart * j._realPart) + (j._complexPart * j._complexPart)) >= 4)
-						{
-							COLORITR = COLORS.begin() + l;
-							SetPixel(_deviceContext, x, y, RGB(COLORITR->getR(), COLORITR->getG(), COLORITR->getB()));
-							break;
-						}
-					}
+					break;
 				}
 			}
-			break;
 		}
-	case true:
-		switch (JULIA)
-		{
-		case false:
-			for (i = 0, y = 0; i < HEIGHT; i += 2, y++)
-			{
-				for (j = 0, x = 0; j < WIDTH; j += 2, x++)
-				{
-					k = SCREENSPACE[i][j];
-
-					l = 0;
-					COPY = k;
-					while (l < iterations)
-					{
-						k = (k * k) + COPY;
-						l++;
-						if (((k._realPart * k._realPart) + (k._complexPart * k._complexPart)) >= 4)
-							break;
-					}
-					l1 = l;
-
-					k = SCREENSPACE[i][++j];
-
-					l = 0;
-					COPY = k;
-					while (l < iterations)
-					{
-						k = (k * k) + COPY;
-						l++;
-						if (((k._realPart * k._realPart) + (k._complexPart * k._complexPart)) >= 4)
-							break;
-					}
-					l2 = l;
-
-					k = SCREENSPACE[++i][j];
-
-					l = 0;
-					COPY = k;
-					while (l < iterations)
-					{
-						k = (k * k) + COPY;
-						l++;
-						if (((k._realPart * k._realPart) + (k._complexPart * k._complexPart)) >= 4)
-							break;
-					}
-					l3 = l;
-
-					k = SCREENSPACE[i][--j];
-
-					l = 0;
-					COPY = k;
-					while (l < iterations)
-					{
-						k = (k * k) + COPY;
-						l++;
-						if (((k._realPart * k._realPart) + (k._complexPart * k._complexPart)) >= 4)
-							break;
-					}
-					l4 = l;
-
-					i--;
-
-					r = 0, g = 0, b = 0;
-
-					t = 0;
-
-					if (l1 != iterations)
-					{
-						COLORITR = (COLORS.begin() + l1);
-						r += COLORITR->getR();
-						g += COLORITR->getG();
-						b += COLORITR->getB();
-						t++;
-					}
-					if (l2 != iterations)
-					{
-						COLORITR = (COLORS.begin() + l2);
-						r += COLORITR->getR();
-						g += COLORITR->getG();
-						b += COLORITR->getB();
-						t++;
-					}
-					if (l3 != iterations)
-					{
-						COLORITR = (COLORS.begin() + l3);
-						r += COLORITR->getR();
-						g += COLORITR->getG();
-						b += COLORITR->getB();
-						t++;
-					}
-					if (l4 != iterations)
-					{
-						COLORITR = (COLORS.begin() + l4);
-						r += COLORITR->getR();
-						g += COLORITR->getG();
-						b += COLORITR->getB();
-						t++;
-					}
-
-					if (t)
-					{
-						r /= t;
-						g /= t;
-						b /= t;
-
-						SetPixel(_deviceContext, x, y, RGB(r, g, b));
-					}
-				}
-			}
-			break;
 		case true:
-			for (i = 0, y = 0; i < HEIGHT; i += 2, y++)
+		{
+			unsigned i = thread;
+			while (1)
 			{
-				for (j = 0, x = 0; j < WIDTH; j += 2, x++)
+				Point& point = SCREENSPACE[i += threads];
+					std::complex<long double> k = point.comp;
+					for (unsigned l = 0; l < MAX_ITERATIONS; l++)
+					{
+						k = (k * k) + JULIAPOINT;
+						if (((k.real() * k.real()) + (k.imag() * k.imag())) >= 4)
+						{
+							std::vector<sf::Color>::iterator COLORITR = COLORS.begin() + l;
+							vertexarray[i].position = sf::Vector2f{ point.x , point.y };
+							vertexarray[i].color = *COLORITR;
+							break;
+						}
+					}
+
+				if (i >= SCREENSPACE.size())
 				{
-					k = SCREENSPACE[i][j];
-
-					l = 0;
-					while (l < iterations)
-					{
-						k = (k * k) + JULIAPOINT;
-						l++;
-						if (((k._realPart * k._realPart) + (k._complexPart * k._complexPart)) >= 4)
-							break;
-					}
-					l1 = l;
-
-					k = SCREENSPACE[i][++j];
-
-					l = 0;
-					while (l < iterations)
-					{
-						k = (k * k) + JULIAPOINT;
-						l++;
-						if (((k._realPart * k._realPart) + (k._complexPart * k._complexPart)) >= 4)
-							break;
-					}
-					l2 = l;
-
-					k = SCREENSPACE[++i][j];
-
-					l = 0;
-					while (l < iterations)
-					{
-						k = (k * k) + JULIAPOINT;
-						l++;
-						if (((k._realPart * k._realPart) + (k._complexPart * k._complexPart)) >= 4)
-							break;
-					}
-					l3 = l;
-
-					k = SCREENSPACE[i][--j];
-
-					l = 0;
-					while (l < iterations)
-					{
-						k = (k * k) + JULIAPOINT;
-						l++;
-						if (((k._realPart * k._realPart) + (k._complexPart * k._complexPart)) >= 4)
-							break;
-					}
-					l4 = l;
-
-					i--;
-
-					r = 0, g = 0, b = 0;
-
-					t = 0;
-
-					if (l1 != iterations)
-					{
-						COLORITR = (COLORS.begin() + l1);
-						r += COLORITR->getR();
-						g += COLORITR->getG();
-						b += COLORITR->getB();
-						t++;
-					}
-					if (l2 != iterations)
-					{
-						COLORITR = (COLORS.begin() + l2);
-						r += COLORITR->getR();
-						g += COLORITR->getG();
-						b += COLORITR->getB();
-						t++;
-					}
-					if (l3 != iterations)
-					{
-						COLORITR = (COLORS.begin() + l3);
-						r += COLORITR->getR();
-						g += COLORITR->getG();
-						b += COLORITR->getB();
-						t++;
-					}
-					if (l4 != iterations)
-					{
-						COLORITR = (COLORS.begin() + l4);
-						r += COLORITR->getR();
-						g += COLORITR->getG();
-						b += COLORITR->getB();
-						t++;
-					}
-
-					if (t)
-					{
-						r /= t;
-						g /= t;
-						b /= t;
-
-						SetPixel(_deviceContext, x, y, RGB(r, g, b));
-					}
+					break;
 				}
 			}
 			break;
@@ -465,20 +159,16 @@ void zoom(long double magnification, long double plusX, long double plusY)
 	ITERATE_WIDTH = PLANE_WIDTH / (long double)WIDTH;
 
 	long double y = -PLANEDIV_HEIGHT;
-	for (vector<Complex>& i : SCREENSPACE)
+	for (unsigned i = 0; i < HEIGHT; i++)
 	{
 		long double x = -PLANEDIV_WIDTH;
-		for (Complex& j : i)
+		for (unsigned j = 0; j < WIDTH; j++)
 		{
-			j = Complex{ x + plusX , y + plusY };
+			SCREENSPACE[((i * HEIGHT) + j)] = Point{ std::complex<long double>{ x + plusX,  y + plusY }, ((i * HEIGHT) + j), (float)j, (float)i };
 			x += ITERATE_WIDTH;
 		}
 		y += ITERATE_HEIGHT;
 	}
-
-	Sleep(3000);
-
-	system("CLS");
 }
 
 int main()
@@ -487,75 +177,44 @@ int main()
 
 	initialize();
 
-	zoom(1.0, 0.0, 0.0);
+	long double currentZoom = 1.0;
 
-	iterate(2000);
+	sf::RenderWindow window(sf::VideoMode{ WIDTH , HEIGHT }, "Mandelbrot");
 
-	zoom(40.0, 0.35, 0.15);
+	sf::VertexArray vertexArray(sf::Points, WIDTH * HEIGHT);
 
-	iterate(2000);
+	long double plusX = 0.0, plusY = 0.0;
 
-	zoom(25.0, -1.2, 0.23);
+	int maxZoom = 200;
 
-	iterate(2000);
+	while (window.isOpen())
+	{
+		sf::Event event;
+		while (window.pollEvent(event))
+		{
+			if (event.type == sf::Event::Closed)
+				window.close();
+		}
 
-	zoom(50.0, -1.2, 0.23);
+		if (currentZoom < maxZoom)
+		{
+			for (int i = 0; i < WIDTH * HEIGHT; i++)
+				vertexArray[i].color = sf::Color::Black;
 
-	iterate(2000);
+			zoom(currentZoom *= 1.1, plusX, plusY);
 
-	zoom(250.0, -1.18, 0.3);
+			unsigned max = std::thread::hardware_concurrency();;
 
-	iterate(2000);
+			std::vector<std::thread> threads;
+			for (unsigned i = 1; i <= max; i++)
+				threads.emplace_back(std::thread(iterate, std::ref(vertexArray), i, max));
+			for (auto& th : threads)
+				th.join();
 
-	zoom(1600.0, -1.185, 0.3);
-
-	iterate(2000);
-
-	zoom(10000.0, -1.185, 0.305);
-
-	iterate(2000);
-
-	zoom(25000.0, -1.1855, 0.3054);
-
-	iterate(2000);
-
-	zoom(200000.0, -1.1855, 0.3054);
-
-	iterate(2000);
-
-	zoom(2000.0, -1.18552, 0.30539);
-
-	iterate(2000);
-
-	zoom(20000.0, -1.18552, 0.30539);
-
-	iterate(2000);
-
-	zoom(200000.0, -1.18552, 0.30539);
-
-	iterate(2000);
-
-	zoom(2000000.0, -1.18552, 0.30539);
-
-	iterate(2000);
-
-	zoom(200.0, -1.25066, -0.02012);
-
-	iterate(2000);
-
-	zoom(2000.0, -1.25066, -0.02012);
-
-	iterate(2000);
-
-	zoom(20000.0, -1.25066, 0.02012);
-
-	iterate(2000);
-
-	zoom(200000.0, -1.25066, 0.02012);
-
-	iterate(2000);
-
-	ReleaseDC(_consoleHandle, _deviceContext);
+			window.draw(vertexArray);
+			window.display();
+		}
+	}
 
 	return 0;
 }
