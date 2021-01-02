@@ -15,7 +15,7 @@ static std::complex<long double> JULIAPOINT = std::complex<long double>{ -0.8 , 
 static const unsigned MAX_ITERATIONS = 5000;
 
 static const unsigned PIXEL_HEIGHT = 1000;
-static const unsigned PIXEL_WIDTH = 1000;
+static const unsigned PIXEL_WIDTH = 2000;
 
 static long double MAGNIFICATION = 0.99;
 static const long double TARGET_X = (!(JULIA) * (long double)-0.7336438924199521) + ((JULIA) * (long double)0.0), TARGET_Y = (!(JULIA) * (long double)-0.2455211406714035) + ((JULIA) * (long double)0.0);
@@ -25,10 +25,10 @@ static const long double TRANSLATE_REAL = -0.000001, TRANSLATE_IMAG = -0.000001;
 
 
 static const long double RATIO = PIXEL_WIDTH / PIXEL_HEIGHT;
+
 static long double PLANEDIV_HEIGHT = 2.0;
 static long double PLANEDIV_WIDTH = PLANEDIV_HEIGHT * RATIO;
-static long double ITERATE_HEIGHT = (PLANEDIV_HEIGHT * 2.0) / PIXEL_HEIGHT;
-static long double ITERATE_WIDTH = ITERATE_HEIGHT * RATIO;
+static long double ITERATE = 4.0 / PIXEL_HEIGHT;
 
 static sf::Color COLORS[MAX_ITERATIONS];
 
@@ -88,9 +88,9 @@ void initialize()
 		{
 			SCREENSPACE[k] = Point{ std::complex<long double>{ x ,  y }, k, j, i };
 			k++;
-			x += ITERATE_WIDTH;
+			x += ITERATE;
 		}
-		y += ITERATE_HEIGHT;
+		y += ITERATE;
 	}
 }
 
@@ -106,7 +106,7 @@ void iterate(const unsigned thread)
 		{
 			while (i < SIZE)
 			{
-				k = { -PLANEDIV_WIDTH + (point->x * ITERATE_WIDTH) + TARGET_X,  -PLANEDIV_HEIGHT + (point->y * ITERATE_HEIGHT) + TARGET_Y };
+				k = { -PLANEDIV_WIDTH + (point->x * ITERATE) + TARGET_X,  -PLANEDIV_HEIGHT + (point->y * ITERATE) + TARGET_Y };
 				point->comp = k;
 
 				j = 0;
@@ -136,7 +136,7 @@ void iterate(const unsigned thread)
 		{
 			while (i < SIZE)
 			{
-				k = { -PLANEDIV_WIDTH + (point->x * ITERATE_WIDTH) + TARGET_X,  -PLANEDIV_HEIGHT + (point->y * ITERATE_HEIGHT) + TARGET_Y };
+				k = { -PLANEDIV_WIDTH + (point->x * ITERATE) + TARGET_X,  -PLANEDIV_HEIGHT + (point->y * ITERATE) + TARGET_Y };
 
 				j = 0;
 				while (1)
@@ -183,8 +183,7 @@ int main()
 		if (MAGNIFICATION < 1.0)
 			MAGNIFICATION += 0.00003;
 
-		ITERATE_HEIGHT *= MAGNIFICATION;
-		ITERATE_WIDTH *= MAGNIFICATION;
+		ITERATE *= MAGNIFICATION;
 		PLANEDIV_HEIGHT *= MAGNIFICATION;
 		PLANEDIV_WIDTH *= MAGNIFICATION;
 
